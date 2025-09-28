@@ -66,7 +66,7 @@ def is_critique_exist(critiques, critique_id):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        prog="SensCritique recommandations algorithm",
+        prog="SensCritique recommendations algorithm",
         description="Script to get similar critiques recommendations"
     )
     parser.add_argument(
