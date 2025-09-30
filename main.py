@@ -15,86 +15,111 @@ class Movie(Enum):
 DATASETS_FOLDER = "datasets"
 QUANTILE_VALUE = 0.90
 REVIEW_LANGUAGE = "french"
+DEFAULT_NB_RECOMMENDATIONS = 10
+OUTPUT_FILE = "reviews_recommendations.csv"
 
 def strip_html(x):
     soup = BeautifulSoup(x, "html.parser")
 
     return soup.get_text().replace("\n", " ")
 
-def get_critiques_data(film_id : Movie):
+def get_reviews_data(film_id : Movie):
     csv_file = Path(f"{DATASETS_FOLDER}/{film_id._name_.replace('_', '')}_critiques.csv")
 
     if not (csv_file.exists()):
-        print(f"Error, it seems that we cannot find the csv linked to this movie : {film_id}")
+        print(f"Error, it seems that we cannot find csv linked to this movie : {film_id}")
         exit(1)
 
-    critiques = pd.read_csv(csv_file, low_memory=False)
+    reviews = pd.read_csv(csv_file, low_memory=False)
 
-    return critiques
+    return reviews
 
-def get_popular_critiques(critiques: pd.DataFrame):
-    m = critiques['gen_review_like_count'].quantile(QUANTILE_VALUE)
+def get_popular_reviews(reviews: pd.DataFrame):
+    print("Finding most popular reviews...")
 
-    popular_critiques = critiques.copy()
-    popular_critiques = popular_critiques.loc[popular_critiques['gen_review_like_count'] >= m]
+    m = reviews['gen_review_like_count'].quantile(QUANTILE_VALUE)
 
-    return popular_critiques
+    popular_reviews = reviews.copy()
+    popular_reviews = popular_reviews.loc[popular_reviews['gen_review_like_count'] >= m]
+
+    return popular_reviews
 
 
-def get_similarity_matrix(critiques: pd.DataFrame):
+def get_similarity_matrix(reviews: pd.DataFrame):
+    print("Finding similarity with this review...")
     final_stopwords_list = stopwords.words('english') + stopwords.words('french')
     tfidf = TfidfVectorizer(stop_words=final_stopwords_list)
 
-    tfidf_matrix = tfidf.fit_transform(critiques['review_content'])
+    reviews['review_content'] = reviews['review_content'].fillna("")
+    tfidf_matrix = tfidf.fit_transform(reviews['review_content'])
+
 
     cosine_sim = linear_kernel(tfidf_matrix, tfidf_matrix)
 
     return cosine_sim
 
-def get_recommendations(critique_id, similarity_matrix, n=10):
-    sim_scores = list(enumerate(similarity_matrix[critique_id]))
+def get_recommendations(review_id, similarity_matrix, n=10):
+    print("Getting recommendations...")
+    sim_scores = list(enumerate(similarity_matrix[review_id]))
 
     sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
     sim_scores = sim_scores[1:n+1]
 
-    critiques_indices = [i[0] for i in sim_scores]
+    review_indices = [i[0] for i in sim_scores]
 
-    return critiques_indices
+    return review_indices
 
-def is_critique_exist(critiques, critique_id):
-    return not critiques[critiques['id'] == critique_id].empty
+def is_review_exist(reviews, review_id):
+    return not reviews[reviews['id'] == review_id].empty
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         prog="SensCritique recommendations algorithm",
-        description="Script to get similar critiques recommendations"
+        description="Script to get similar reviews recommendations"
     )
+
+    possibles_movies = [movie for movie in Movie]
+
     parser.add_argument(
         "-m",
         "--movie-id",
         type=int,
-        help="Movie ID",
-        choices=[movie.value for movie in Movie],
+        help=f"Movie ID. {', '.join([f'{movie.value}: {movie.name}' for movie in possibles_movies])}",
+        choices=[movie.value for movie in possibles_movies],
         required=True
     )
     parser.add_argument(
-        "-c",
-        "--critique-id",
+        "-r",
+        "--review-id",
         type=int,
-        help="Critique ID",
+        help="Review ID",
         required=True
+    )
+    parser.add_argument(
+        "-n",
+        type=int,
+        help=f"Number of recommendations. By default, {DEFAULT_NB_RECOMMENDATIONS}.",
+        default=DEFAULT_NB_RECOMMENDATIONS,
     )
     args = parser.parse_args()
 
-    critiques = get_critiques_data(Movie(args.movie_id))
-    critique_id = args.critique_id
+    reviews = get_reviews_data(Movie(args.movie_id))
+    review_id = args.critique_id
+    nb_recommendations = args.n
 
-    if not is_critique_exist(critiques, critique_id):
-        print(f"Error, it seems that we cannot find the critique linked to this id : {critique_id}")
+    if nb_recommendations < 1:
+        print(f"Error, the number of recommendations cannot be less than 1.")
         exit(1)
 
-    critiques = get_popular_critiques(critiques)
-    cosine_sim = get_similarity_matrix(critiques)
-    indices = pd.Series(critiques.index, index=critiques['id'])
-    recommendations_indices = get_recommendations(indices[critique_id], cosine_sim)
-    print(critiques.iloc[recommendations_indices])
+    if not is_review_exist(reviews, review_id):
+        print(f"Error, it seems that we cannot find review linked to this id : {review_id}")
+        exit(1)
+
+    reviews = get_popular_reviews(reviews)
+    cosine_sim = get_similarity_matrix(reviews)
+    indices = pd.Series(reviews.index, index=reviews['id'])
+    recommendations_indices = get_recommendations(indices[review_id], cosine_sim, n=nb_recommendations)
+    results = reviews.iloc[recommendations_indices]
+
+    results.to_csv(OUTPUT_FILE)
+    print(f"Everything is done! You can find your recommendations here: {OUTPUT_FILE}")
