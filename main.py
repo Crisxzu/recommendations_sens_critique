@@ -104,7 +104,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     reviews = get_reviews_data(Movie(args.movie_id))
-    review_id = args.critique_id
+    review_id = args.review_id
     nb_recommendations = args.n
 
     if nb_recommendations < 1:
