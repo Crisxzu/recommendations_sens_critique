@@ -72,7 +72,3 @@ Je termine en triant du score de similarité le plus élevé au plus faible et j
 Des améliorations auxquelles je pense, ça serait de sauvegarder la matrice de similarité calculée, au moins un certain temps puis la recalculer quand on déterminera que nouvelles données sont entrés en jeu et qu'il faut le refaire.<br>
 Cela pourra se faire en cache via Redis qui est plutôt efficace pour permettre d'accéder à des données qu'on souhaite garder temporairement rapidement.<br>
 Mon approche aussi a plein de faiblesses, les recommandations ne sont pas toujours assez pertinents et c'est avec plaisir que j'aimerais recevoir vos retours par la suite.
-
----
-
-Créé avec ❤️ par Dazu
