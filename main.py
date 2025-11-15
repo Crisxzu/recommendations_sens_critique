@@ -1,11 +1,10 @@
 from enum import Enum
 from pathlib import Path
-from sklearn.feature_extraction.text import TfidfVectorizer
 from bs4 import BeautifulSoup
-from sklearn.metrics.pairwise import linear_kernel
+from sklearn.metrics.pairwise import cosine_similarity
 import pandas as pd
-from nltk.corpus import stopwords
 import argparse
+from sentence_transformers import SentenceTransformer
 
 class Movie(Enum):
     FIGHT_CLUB = 0
@@ -14,9 +13,9 @@ class Movie(Enum):
 
 DATASETS_FOLDER = "datasets"
 QUANTILE_VALUE = 0.90
-REVIEW_LANGUAGE = "french"
 DEFAULT_NB_RECOMMENDATIONS = 10
 OUTPUT_FILE = "reviews_recommendations.csv"
+model = SentenceTransformer("paraphrase-multilingual-mpnet-base-v2")
 
 def strip_html(x):
     soup = BeautifulSoup(x, "html.parser")
@@ -47,14 +46,12 @@ def get_popular_reviews(reviews: pd.DataFrame):
 
 def get_similarity_matrix(reviews: pd.DataFrame):
     print("Finding similarity with this review...")
-    final_stopwords_list = stopwords.words('english') + stopwords.words('french')
-    tfidf = TfidfVectorizer(stop_words=final_stopwords_list)
 
     reviews['review_content'] = reviews['review_content'].fillna("")
-    tfidf_matrix = tfidf.fit_transform(reviews['review_content'])
 
+    embeddings = model.encode(reviews['review_content'].values)
 
-    cosine_sim = linear_kernel(tfidf_matrix, tfidf_matrix)
+    cosine_sim = cosine_similarity(embeddings, embeddings)
 
     return cosine_sim
 
@@ -104,7 +101,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     reviews = get_reviews_data(Movie(args.movie_id))
-    review_id = args.critique_id
+    review_id = args.review_id
     nb_recommendations = args.n
 
     if nb_recommendations < 1:
@@ -115,7 +112,7 @@ if __name__ == "__main__":
         print(f"Error, it seems that we cannot find review linked to this id : {review_id}")
         exit(1)
 
-    reviews = get_popular_reviews(reviews)
+    reviews = get_popular_reviews(reviews).reset_index()
     cosine_sim = get_similarity_matrix(reviews)
     indices = pd.Series(reviews.index, index=reviews['id'])
     recommendations_indices = get_recommendations(indices[review_id], cosine_sim, n=nb_recommendations)
