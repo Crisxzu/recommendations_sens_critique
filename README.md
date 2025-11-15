@@ -37,6 +37,25 @@ pip install -r requirements.txt
 python main.py
 ```
 
+## Approche technique
+
+Le système de recommandations utilise **Sentence-BERT** (SBERT) pour analyser la similarité sémantique entre les critiques.
+
+### Modèle utilisé
+
+- **paraphrase-multilingual-mpnet-base-v2** : Modèle SBERT multilingue optimisé pour générer des embeddings sémantiques de qualité en français
+- Avantages par rapport à TF-IDF :
+  - Capture le sens contextuel du texte, pas seulement les mots-clés
+  - Meilleure compréhension des paraphrases et synonymes
+  - Embeddings denses qui capturent les nuances sémantiques
+
+### Pipeline de recommandation
+
+1. **Filtrage** : Sélection des critiques populaires (90e percentile de likes)
+2. **Vectorisation** : Génération d'embeddings SBERT pour chaque critique
+3. **Similarité** : Calcul de la similarité cosinus entre les embeddings
+4. **Recommandation** : Sélection des N critiques les plus similaires
+
 ## Configuration
 
 Différentes options sont disponibles en fonction de ce que vous souhaitez.
